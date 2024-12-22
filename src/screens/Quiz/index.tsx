@@ -11,7 +11,7 @@ import Animated, {
   Extrapolate,
   Easing,
   useAnimatedScrollHandler,
-  event
+  runOnJS
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 
@@ -33,6 +33,9 @@ interface Params {
 }
 
 type QuizProps = typeof QUIZ[0];
+
+const CARD_INCLINATION = 10
+const CARD_SKIP_AREA = (-200)
 
 export function Quiz() {
   const [points, setPoints] = useState(0);
@@ -156,13 +159,32 @@ export function Quiz() {
     }
   })
 
-  const onPan =  Gesture
+  const onPan = Gesture
   .Pan()
+  .activateAfterLongPress(200)
   .onUpdate((event) => {
-    cardPosition.value = event.translationX
+    const moveToLeft = event.translationX < 0;
+
+    if(moveToLeft) {
+      cardPosition.value = event.translationX
+    }
   })
-  .onEnd(() => {
+  .onEnd((event) => {
+    if(event.translationX < CARD_SKIP_AREA) {
+      runOnJS(handleSkipConfirm)();
+    }
+
     cardPosition.value = withTiming(0)
+  })
+
+  const dragStyles = useAnimatedStyle(() => {
+    const rotateZ = cardPosition.value / CARD_INCLINATION;
+    return {
+      transform: [
+        { translateX: cardPosition.value },
+        { rotateZ: `${rotateZ}deg` }
+      ]
+    }
   })
 
   useEffect(() => {
@@ -200,7 +222,7 @@ export function Quiz() {
         
 
         <GestureDetector gesture={onPan}>
-          <Animated.View style={shakeStyleAnimated}>
+          <Animated.View style={[shakeStyleAnimated, dragStyles]}>
             <Question
               key={quiz.questions[currentQuestion].title}
               question={quiz.questions[currentQuestion]}
